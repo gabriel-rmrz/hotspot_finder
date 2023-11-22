@@ -1,3 +1,17 @@
+## Current solution
+#### Pre-porcessing
+Using the preprocessing algorithm from 'Solar Panel Detection within Complex Backgrounds Using Thermal Images Acquired by UAVs' consiting in the following steps:
+ - Image correction: consis in the normalizaion y window selection of the intensities of color for the individual pixels. (Not yet implemented)
+ - Image segmentation: 
+   - convolution filter
+   - bilateral filter
+   - gamma correction
+   - adaptative threshold (added from other sources)
+     - ``` cv.adaptiveThreshold(img_cv,255,cv.ADAPTIVE_THRESH_GAUSSIAN_C,cv.THRESH_BINARY,13,i)```
+
+
+
+
 #### Possible solutions
 
  - Keep trying the open CV tool to understand if we can get to an identification and if it can be versatile enough to fin the same patterns in other images.

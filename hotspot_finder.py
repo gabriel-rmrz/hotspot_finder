@@ -64,6 +64,7 @@ def crop_rect(img, rect):
   return img_crop, img_rot
 def prepare_img(img_cv, img_cv2):
   #img_cv = img_cv[:,:,0]
+  print("here")
   m1 = np.mean(img_cv)
   m2 = np.mean(img_cv2)
   #im_array = im_array * (m1/m2)
@@ -72,22 +73,59 @@ def prepare_img(img_cv, img_cv2):
   print(img_cv.shape)
   cv.imwrite(f"plots/compare_R.png",img_cv)
   cv.imwrite(f"plots/compare_IR.png",img_cv2)
+  img_cv2 = np.asarray(img_cv2)
+  img_arr2 = img_cv2.flatten()
+  img_arr2 = img_arr2[img_arr2 < 255] 
+  fig, axs =  plt.subplots(1, 2, sharey=True, tight_layout=True)
+  bins_x = np.linspace(img_arr2.min(), img_arr2.max(), 20)
+  #bins_y = range(7500, 9500, 20)
+  axs[0].hist(img_arr2, bins=bins_x)
+  axs[1].hist(img_arr2, bins=bins_x)
+  plt.savefig(f"plots/hist/hist_IR.png")
+
+def preprocess_image(img_cv,ks=5, d=3, sigColor=100, sigSpace=100,gc=1.):
+  if DEBUG:
+    cv.imwrite(f"plots/pre_preprocessed.png",img_cv)
+  # ks must be odd 3,5,7
+  kernel = np.ones((ks,ks), np.float32)/(ks*ks)
+  img_conv = cv.filter2D(src=img_cv, ddepth=-1, kernel=kernel)
+  if DEBUG:
+    cv.imwrite(f"plots/preprocessed_conv.png",img_conv)
+  img_bi = cv.bilateralFilter(src=img_conv, d=d, sigmaColor=sigColor, sigmaSpace=sigSpace)
+  if DEBUG:
+    cv.imwrite(f"plots/preprocessed_bilateral.png",img_bi)
+  img_gamma = gammaCorrection(img_bi, gc)
+  if DEBUG:
+    cv.imwrite(f"plots/preprocessed.png",img_gamma)
+
+  return img_gamma
+  
+def gammaCorrection(img_cv, gamma):
+  invGamma = 1/ gamma
+  table = [((i/255)**invGamma) * 255 for i in range(256)]
+  table = np.array(table, np.uint8)
+
+  return cv.LUT(img_cv, table)
+
 
 
 def find_rectangles(img_cv_in,img_cv_in2):
   #i = 95
   img_cv_out = img_cv_in
   img_cv_out = cv.cvtColor(img_cv_out, cv.COLOR_BGR2GRAY)
-  for i in range(2, 3, 2):
+  for i in range(2, 8):
     img_cv = cv.cvtColor(img_cv_in, cv.COLOR_BGR2GRAY)
     #img_cv = img_cv_in
     cv.imwrite("bin_img.png",img_cv)
     #ret, thresh = cv.threshold(img_cv, i, 256,cv.THRESH_OTSU)
     #ret, thresh = cv.threshold(img_cv, i, 256,cv.THRESH_BINARY_INV+cv.THRESH_OTSU)
-    img_cv = cv.GaussianBlur(img_cv,(5,5), 0)
+
+    #img_cv = cv.GaussianBlur(img_cv,(5,5), 0)
+    img_cv = preprocess_image(img_cv,ks=5, d=3, sigColor=100, sigSpace=100,gc=1.)
+
     #ret, thresh = cv.threshold(img_cv, i, 256,cv.THRESH_BINARY)
-    thresh = cv.adaptiveThreshold(img_cv,255,cv.ADAPTIVE_THRESH_MEAN_C,cv.THRESH_BINARY,13,i)
-    #thresh = cv.adaptiveThreshold(img_cv,255,cv.ADAPTIVE_THRESH_GAUSSIAN_C,cv.THRESH_BINARY,13,i)
+    #thresh = cv.adaptiveThreshold(img_cv,255,cv.ADAPTIVE_THRESH_MEAN_C,cv.THRESH_BINARY,13,i)
+    thresh = cv.adaptiveThreshold(img_cv,255,cv.ADAPTIVE_THRESH_GAUSSIAN_C,cv.THRESH_BINARY,13,i)
     #ret, thresh = cv.threshold(img_cv,i,255,cv.THRESH_BINARY+cv.THRESH_OTSU)
     #ret, thresh = cv.threshold(img_cv, i, 256,cv.THRESH_BINARY)
     #thresh = cv.GaussianBlur(thresh,(5,5), 0)
@@ -133,9 +171,10 @@ def find_rectangles(img_cv_in,img_cv_in2):
           print(f"width: {w}, height: {h}")
           w_arr.append(w)
           h_arr.append(h)
-          img_cv = cv.drawContours(img_cv, [cnt], -1, (0, 255,0),8)
+          #img_cv = cv.drawContours(img_cv_in, [cnt], -1, (0, 255,255),6)
+          img_cv = cv.drawContours(img_cv, [cnt], -1, (255,0,0),6)
           #img_cv2 = cv.drawContours(img_cv2, [cnt], -1, (255, 255,0),8)
-          img_cv_out = cv.drawContours(img_cv_out, [box], -1, (0, 255,0),8)
+          img_cv_out = cv.drawContours(img_cv_out, [box], -1, (255, 0,0),6)
           #cv.putText(img_cv, f"{k}", (x1[0], x1[1]), cv.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255,0), 2)
           #cv.putText(img_cv2, f"{k}", (x1[0], x1[1]), cv.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255,0), 2)
 
@@ -156,16 +195,16 @@ def main():
   Image.MAX_IMAGE_PIXELS = 254162108
   #im = Image.open('Lato_SUD_LERS.tif')
   #im = Image.open('Lato_SUD.tif')
-  im = Image.open('Ortho1mw_Lres.tif')
-  im_array = np.array(im)
-  img_cv = im_array.astype(np.uint8)
+  im1 = Image.open('Ortho1mw_Lres.tif')
+  im_array1 = np.array(im1)
+  img_cv1 = im_array1.astype(np.uint8)
 
-  im = Image.open('1mw_TIR_index_grayscale.tif')
-  im_array = np.array(im)
-  img_cv2 = im_array.astype(np.uint8)
+  im2 = Image.open('1mw_TIR_index_grayscale.tif')
+  im_array2 = np.array(im2)
+  img_cv2 = im_array2.astype(np.uint8)
 
-  #prepare_img(img_cv, img_cv2)
-  find_rectangles(img_cv, img_cv2)
+  #prepare_img(img_cv1, img_cv2)
+  find_rectangles(img_cv1, img_cv2)
   #plot_preprocessed_img(img_cv)
   #find_circle(img_cv)
 
